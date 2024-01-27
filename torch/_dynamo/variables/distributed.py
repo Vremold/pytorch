@@ -38,9 +38,8 @@ class DistributedVariable(VariableTracker):
 def is_from_local(value):
     if not DistributedVariable.is_available():
         return False
-    from torch.distributed._tensor import DTensor
 
-    return inspect.isfunction(value) and value is DTensor.from_local
+    return inspect.isfunction(value) and value.__name__ == "from_local"
 
 
 def is_constant_pg_functions(value):
@@ -66,16 +65,16 @@ class PlacementClassVariable(DistributedVariable):
         # we can't rely on importing/accessing torch distributed, it is not always built.
         if not DistributedVariable.is_available():
             return False
-
-        from torch.distributed._tensor.placement_types import Placement
-
-        return type(value) is type and issubclass(value, Placement)
+        if not isinstance(value, type):
+            return False
+        return value.__name__ in ("Placement", "Replicate", "Shard", "_Partial" "Partial", "InterleavedShard")
 
     def call_function(
         self, tx, args: "List[VariableTracker]", kwargs: "Dict[str, VariableTracker]"
     ) -> "VariableTracker":
         if (
-            inspect.getattr_static(self.value, "__new__", None) in (object.__new__,)
+            inspect.getattr_static(self.value, "__new__",
+                                   None) in (object.__new__,)
             and self.source
         ):
             # NOTE: we don't need to track mutations to the placement class as they
@@ -96,9 +95,7 @@ class PlacementVariable(DistributedVariable):
         if not DistributedVariable.is_available():
             return False
 
-        from torch.distributed._tensor.placement_types import Placement
-
-        return isinstance(value, Placement)
+        return type(value).__name__ in ("Placement", "Replicate", "Shard", "_Partial" "Partial", "InterleavedShard")
 
     def as_python_constant(self):
         return self.value
@@ -134,7 +131,8 @@ class PlacementVariable(DistributedVariable):
             try:
                 value_type = type(self.value)
                 assert (
-                    inspect.getattr_static(value_type, "__getattr__", None) is None
+                    inspect.getattr_static(
+                        value_type, "__getattr__", None) is None
                 ), "no custom getattr allowed!"
                 method = inspect.getattr_static(value_type, name)
             except AttributeError:
@@ -157,9 +155,7 @@ class DeviceMeshVariable(DistributedVariable):
         if not DistributedVariable.is_available():
             return False
 
-        from torch.distributed.device_mesh import DeviceMesh
-
-        return istype(value, DeviceMesh)
+        return type(value).__name__ == "DeviceMesh"
 
     def as_python_constant(self):
         return self.value
