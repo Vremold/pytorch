@@ -141,6 +141,62 @@ def wait_tensor(tensor):
     return torch.ops.c10d_functional.wait_tensor(tensor)  # type: ignore[attr-defined]
 
 
+def send(self: torch.Tensor, dst: int, group: RANK_TYPES, tag: str = ""):
+    """
+    Sends the tensor to the destination process.
+
+    Args:
+        dst (int): Destination rank
+        group (ProcessGroup or List[int]): The process group to work on.
+        tag (str, optional): A unique identifier for the collective. Default: empty string
+    """
+    tag, rankset, group_size = _expand_group(group, tag)
+    tensor = torch.ops.c10d_functional.send(self, dst, tag, rankset, group_size)
+    return tensor
+
+
+def recv(self: torch.Tensor, src: int, group: RANK_TYPES, tag: str = ""):
+    """
+    Receives the tensor from the source process.
+
+    Args:
+        srd (int): Source rank
+        group (ProcessGroup or List[int]): The process group to work on.
+        tag (str, optional): A unique identifier for the collective. Default: empty string
+    """
+    tag, rankset, group_size = _expand_group(group, tag)
+    tensor = torch.ops.c10d_functional.recv(self, src, tag, rankset, group_size)
+    return tensor
+
+
+def isend(self: torch.Tensor, dst: int, group: RANK_TYPES, tag: str = ""):
+    """
+    Sends the tensor to the destination process asynchronously.
+
+    Args:
+        dst (int): Destination rank
+        group (ProcessGroup or List[int]): The process group to work on.
+        tag (str, optional): A unique identifier for the collective. Default: empty string
+    """
+    tag, rankset, group_size = _expand_group(group, tag)
+    tensor = torch.ops.c10d_functional.isend(self, dst, tag, rankset, group_size)
+    return _maybe_wrap_tensor(tensor)
+
+
+def irecv(self: torch.Tensor, src: int, group: RANK_TYPES, tag: str = ""):
+    """
+    Receives the tensor from the source process asynchronously.
+
+    Args:
+        src (int): Source rank
+        group (ProcessGroup or List[int]): The process group to work on.
+        tag (str, optional): A unique identifier for the collective. Default: empty string
+    """
+    tag, rankset, group_size = _expand_group(group, tag)
+    tensor = torch.ops.c10d_functional.irecv(self, src, tag, rankset, group_size)
+    return _maybe_wrap_tensor(tensor)
+
+
 def broadcast(self: torch.Tensor, src: int, group: RANK_TYPES, tag: str = ""):
     """
     Broadcasts the tensor to all processes in the given process group.
@@ -627,6 +683,22 @@ def _all_gather_into_tensor_coalesced_meta(self, tag, rankset, group_size):
 
 
 # We now register meta kernels to deal with tracing
+def _send_meta(self, *args):
+    return torch.empty_like(self)
+
+
+def _recv_meta(self, *args):
+    return torch.empty_like(self)
+
+
+def _isend_meta(self, *args):
+    return torch.empty_like(self)
+
+
+def _irecv_meta(self, *args):
+    return torch.empty_like(self)
+
+
 def _broadcast_meta(self, *args):
     return torch.empty_like(self)
 
@@ -721,6 +793,10 @@ def _reduce_scatter_tensor_coalesced_native_meta(
 
 def _register_ops():
     ops_defs = [
+        "send(Tensor self, int dst, str tag, int[] ranks, int group_size) -> Tensor",
+        "recv(Tensor self, int src, str tag, int[] ranks, int group_size) -> Tensor",
+        "isend(Tensor self, int dst, str tag, int[] ranks, int group_size) -> Tensor",
+        "irecv(Tensor self, int src, str tag, int[] ranks, int group_size) -> Tensor",
         "broadcast(Tensor self, int src, str tag, int[] ranks, int group_size) -> Tensor",
         "all_reduce(Tensor self, str reduceOp, str tag, int[] ranks, int group_size) -> Tensor",
         "all_reduce_coalesced(Tensor[] self, str reduceOp, str tag, int[] ranks, int group_size) -> Tensor[]",
