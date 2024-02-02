@@ -69,6 +69,9 @@ class PlacementClassVariable(DistributedVariable):
             return False
         return value.__name__ in ("Placement", "Replicate", "Shard", "_Partial" "Partial", "InterleavedShard")
 
+    def as_python_constant(self):
+        return self.value
+
     def call_function(
         self, tx, args: "List[VariableTracker]", kwargs: "Dict[str, VariableTracker]"
     ) -> "VariableTracker":
@@ -125,6 +128,13 @@ class PlacementVariable(DistributedVariable):
             "is_shard",
             "is_partial",
             "is_replicate",
+            "is_interleaved_shard",
+        ]
+        return_constant_functions = [
+            "is_shard",
+            "is_partial",
+            "is_replicate",
+            "is_interleaved_shard",
         ]
 
         if name in constant_fold_functions:
@@ -142,7 +152,9 @@ class PlacementVariable(DistributedVariable):
 
             args = [x.as_python_constant() for x in args]
             kwargs = {k: v.as_python_constant() for k, v in kwargs.items()}
-            method(self.value, *args, **kwargs)
+            out = method(self.value, *args, **kwargs)
+            if name in return_constant_functions:
+                return ConstantVariable(out)
             return self
 
         return super().call_method(tx, name, args, kwargs)
@@ -163,6 +175,8 @@ class DeviceMeshVariable(DistributedVariable):
     def var_getattr(self, tx, name: str) -> VariableTracker:
         if name == "ndim":
             return ConstantVariable.create(self.value.ndim)
+        if name == "device_type":
+            return ConstantVariable.create(self.value.device_type)
         return super().var_getattr(tx, name)
 
     def call_method(

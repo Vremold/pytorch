@@ -1283,6 +1283,9 @@ class BuiltinVariable(VariableTracker):
         elif isinstance(obj, TorchInGraphFunctionVariable):
             # Get OpOverload from an OpOverloadPacket, e.g., torch.ops.aten.add.default.
             member = getattr(obj.value, name)
+            # NOTE: it's just a hack, we need a better way to fit in DTensor
+            if isinstance(obj.value, type) and obj.value.__name__ in ["DTensor"]:
+                return TorchInGraphFunctionVariable(member, **options)
             if trace_rules.is_aten_op_or_tensor_method(member):
                 return TorchInGraphFunctionVariable(member, **options)
         elif isinstance(obj, (PythonModuleVariable, DummyModule)):

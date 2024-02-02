@@ -817,8 +817,15 @@ def detect_fake_mode(inputs: Any = None):
 
     flat_inputs = pytree.tree_leaves(inputs)
     for i, flat_input in enumerate(flat_inputs):
+        from torch.utils._python_dispatch import is_traceable_wrapper_subclass
         if isinstance(flat_input, FakeTensor):
             fake_modes.append((flat_input.fake_mode, "fake tensor input", i))
+        elif is_traceable_wrapper_subclass(flat_input):
+            attrs, _ = flat_input.__tensor_flatten__()
+            for attr in attrs:
+                inner_tensor = getattr(flat_input, attr)
+                if isinstance(inner_tensor, FakeTensor):
+                    fake_modes.append((inner_tensor.fake_mode, "fake inner tensor input", i))
 
     if fake_modes:
         fake_mode, desc1, i1 = fake_modes[0]

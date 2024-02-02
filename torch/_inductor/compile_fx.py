@@ -1200,6 +1200,7 @@ def compile_fx(
         gm, graph_signature = aot_export_module(
             model_, example_inputs_, trace_joint=False, decompositions=decompositions
         )
+        print(f"[rank{torch.distributed.get_rank() if torch.distributed.distributed_c10d.is_initialized() else None}][WJW][Inference Compiler]", model_, gm, graph_signature)
         unlifted_gm = _unlift_graph(model_, gm, graph_signature)
         if "dynamo_flat_name_to_original_fqn" in model_.meta:
             unlifted_gm.meta["dynamo_flat_name_to_original_fqn"] = model_.meta[
@@ -1211,6 +1212,7 @@ def compile_fx(
     with V.set_fake_mode(fake_mode), torch._guards.tracing(
         tracing_context
     ), compiled_autograd.disable():
+        print(f"[rank{torch.distributed.get_rank() if torch.distributed.distributed_c10d.is_initialized() else None}][WJW][AotAutograd]", model_, example_inputs_)
         return aot_autograd(
             fw_compiler=fw_compiler,
             bw_compiler=bw_compiler,

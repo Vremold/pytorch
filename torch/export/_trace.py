@@ -79,8 +79,11 @@ def _convert_input_to_fake(gm, args, kwargs):
             if fake_val is not None and isinstance(fake_val, torch.Tensor):
                 fake_inps.append(fake_val)
 
+    print(f"[rank{torch.distributed.get_rank() if torch.distributed.distributed_c10d.is_initialized() else None}][WJW][_convert_input_to_fake] args:", args, "fake_inputs:", fake_inps)
+
     if detected_fake_mode := detect_fake_mode(fake_inps):
         fake_mode = detected_fake_mode
+        print(f"[rank{torch.distributed.get_rank() if torch.distributed.distributed_c10d.is_initialized() else None}][WJW][_convert_input_to_fake] detect fake_mode", fake_mode, "args:", args)
     else:
         fake_mode = FakeTensorMode(shape_env=ShapeEnv())
 
@@ -657,6 +660,8 @@ def _export(
         preserve_module_call_signature=preserve_module_call_signature,
         restore_fqn=False,  # don't need to restore because we will do it later
     )
+
+    print(f"[rank{torch.distributed.get_rank() if torch.distributed.distributed_c10d.is_initialized() else None}][WJW][_export] gm_torch_level:", gm_torch_level)
 
     params_buffers = _get_params_buffers(gm_torch_level)
 

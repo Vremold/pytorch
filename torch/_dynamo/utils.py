@@ -1580,10 +1580,16 @@ def get_fake_value(node, tx, allow_non_graph_fake=False):
         nnmodule = deepcopy_to_fake_tensor(nnmodule, tx.fake_mode)
 
     try:
+        # old_fake_mode_allow_fake_inputs = tx.fake_mode.allow_non_fake_inputs
+        # if not tx.fake_mode.allow_non_fake_inputs:
+        #     tx.fake_mode.allow_non_fake_inputs = True
+        # with tx.fake_mode, enable_python_dispatcher():
+        # log.debug(f"[rank{torch.distributed.get_rank() if torch.distributed.distributed_c10d.is_initialized() else None}][WJW] get_fake_value", node, args, kwargs)
         with tx.fake_mode, enable_python_dispatcher():
             ret_val = wrap_fake_exception(
                 lambda: run_node(tx.output, node, args, kwargs, nnmodule)
             )
+        # tx.fake_mode.allow_non_fake_inputs = old_fake_mode_allow_fake_inputs
     except Unsupported:
         raise
     except RuntimeError as e:
@@ -1677,7 +1683,7 @@ def run_node(tracer, node, args, kwargs, nnmodule):
     raise an AssertionError.
     """
     op = node.op
-
+    # log.debug(f"[rank{torch.distributed.get_rank() if torch.distributed.distributed_c10d.is_initialized() else None}][WJW] run node", node.target, *args, **kwargs)
     with set_current_node(node):
         try:
             if op == "call_function":
